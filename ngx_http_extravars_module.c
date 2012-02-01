@@ -29,6 +29,10 @@ static ngx_int_t ngx_extra_var_bytes_sent(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_request_length(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_extra_var_cache_key(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_extra_var_cache_file(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_http_extravars_add_variables(ngx_conf_t *cf);
 
 
@@ -84,6 +88,10 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("bytes_sent"), NULL, ngx_extra_var_bytes_sent, 0, 0, 0 },
 
     { ngx_string("request_length"), NULL, ngx_extra_var_request_length, 0, 0, 0 },
+
+    { ngx_string("cache_key"), NULL, ngx_extra_var_cache_key, 0, 0, 0 },
+
+    { ngx_string("cache_file"), NULL, ngx_extra_var_cache_file, 0, 0, 0 },
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -328,4 +336,64 @@ ngx_extra_var_request_length(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+
+#if (NGX_HTTP_CACHE)
+
+static ngx_int_t
+ngx_extra_var_cache_key(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    u_char            *p;
+    ngx_http_cache_t  *c;
+
+    c = r->cache;
+    if (c == NULL) {
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    p = ngx_pnalloc(r->pool, 2 * NGX_HTTP_CACHE_KEY_LEN);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    ngx_hex_dump(p, c->key, NGX_HTTP_CACHE_KEY_LEN);
+
+    v->len = 2 * NGX_HTTP_CACHE_KEY_LEN;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_extra_var_cache_file(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_http_cache_t  *c;
+
+    c = r->cache;
+    if (c == NULL) {
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    if (0 == c->file.name.len) {
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    v->len = c->file.name.len;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = c->file.name.data;
+
+    return NGX_OK;
+}
+
+#endif
 
