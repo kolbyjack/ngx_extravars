@@ -453,21 +453,28 @@ static ngx_int_t
 ngx_extra_var_original_uri(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
 {
-    u_char *src, *dst, *p;
+    ngx_str_t    uri, args;
+    u_char      *src, *dst, *p;
+    ngx_uint_t   flags;
 
-    p = ngx_pnalloc(r->pool, r->unparsed_uri.len);
+    uri = r->unparsed_uri;
+    ngx_str_null(&args);
+    flags = 0;
+
+    if (NGX_OK != ngx_http_parse_unsafe_uri(r, &uri, &args, &flags)) {
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    p = ngx_pnalloc(r->pool, uri.len);
     if (p == NULL) {
         return NGX_ERROR;
     }
 
-    src = r->unparsed_uri.data;
+    src = uri.data;
     dst = p;
 
-    ngx_unescape_uri(&dst, &src, r->unparsed_uri.len, NGX_UNESCAPE_URI);
-
-    if (dst > p && '?' == *(dst - 1)) {
-        --dst;
-    }
+    ngx_unescape_uri(&dst, &src, uri.len, 0);
 
     v->len = dst - p;
     v->valid = 1;
