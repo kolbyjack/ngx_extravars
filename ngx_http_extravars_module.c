@@ -13,6 +13,8 @@
 #define NGX_EXTRAVARS_TIME_REQUEST  2
 
 
+static ngx_int_t ngx_http_extravars_add_variables(ngx_conf_t *cf);
+
 static ngx_int_t ngx_extra_var_location(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_connection(ngx_http_request_t *r,
@@ -45,7 +47,8 @@ static ngx_int_t ngx_extra_var_redirect_count(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_subrequest_count(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
-static ngx_int_t ngx_http_extravars_add_variables(ngx_conf_t *cf);
+static ngx_int_t ngx_extra_var_request_version(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -130,6 +133,9 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("subrequest_count"), NULL, ngx_extra_var_subrequest_count,
         0, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("request_version"), NULL, ngx_extra_var_request_version,
+        0, 0, 0 },
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -521,6 +527,28 @@ ngx_extra_var_subrequest_count(ngx_http_request_t *r,
 
     v->len = ngx_sprintf(p, "%ui",
         NGX_HTTP_MAX_SUBREQUESTS + 1 - r->subrequests) - p;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_extra_var_request_version(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    u_char  *p;
+
+    p = ngx_pnalloc(r->pool, NGX_SIZE_T_LEN * 2 + 1);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    v->len = ngx_sprintf(p, "%ui.%ui",
+        r->http_major, r->http_minor) - p;
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
