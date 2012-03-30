@@ -19,8 +19,6 @@ static ngx_int_t ngx_extra_var_location(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_connection(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
-static ngx_int_t ngx_extra_var_connection_requests(ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_pipe(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_time(ngx_http_request_t *r,
@@ -40,6 +38,8 @@ static ngx_int_t ngx_extra_var_cache_key(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_cache_file(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_extra_var_cache_age(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 #endif
 static ngx_int_t ngx_extra_var_ext(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
@@ -51,6 +51,10 @@ static ngx_int_t ngx_extra_var_subrequest_count(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_request_version(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#if nginx_version < 1001018
+static ngx_int_t ngx_extra_var_connection_requests(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+#endif
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -91,9 +95,6 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("connection"), NULL, ngx_extra_var_connection, 0, 0, 0 },
 
-    { ngx_string("connection_requests"), NULL,
-        ngx_extra_var_connection_requests, 0, 0, 0 },
-
     { ngx_string("pipe"), NULL, ngx_extra_var_pipe, 0, 0, 0 },
 
     { ngx_string("time_local"), NULL, ngx_extra_var_time, 0,
@@ -109,7 +110,7 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
         NGX_EXTRAVARS_TIME_ELAPSED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("request_received"), NULL, ngx_extra_var_msec,
-        NGX_EXTRAVARS_TIME_REQUEST, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+        NGX_EXTRAVARS_TIME_REQUEST, 0, 0 },
 
     { ngx_string("status"), NULL, ngx_extra_var_status, 0,
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
@@ -126,6 +127,9 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("cache_file"), NULL, ngx_extra_var_cache_file, 0,
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("cache_age"), NULL, ngx_extra_var_cache_age, 0,
+        NGX_HTTP_VAR_NOCACHEABLE, 0 },
 #endif
 
     { ngx_string("ext"), NULL, ngx_extra_var_ext, 0,
@@ -141,6 +145,11 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("request_version"), NULL, ngx_extra_var_request_version,
         0, 0, 0 },
+
+#if nginx_version < 1001018
+    { ngx_string("connection_requests"), NULL,
+        ngx_extra_var_connection_requests, 0, 0, 0 },
+#endif
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -205,27 +214,6 @@ ngx_extra_var_connection(ngx_http_request_t *r,
     }
 
     v->len = ngx_sprintf(p, "%uA", r->connection->number) - p;
-    v->valid = 1;
-    v->no_cacheable = 0;
-    v->not_found = 0;
-    v->data = p;
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
-ngx_extra_var_connection_requests(ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data)
-{
-    u_char  *p;
-
-    p = ngx_pnalloc(r->pool, NGX_INT_T_LEN);
-    if (p == NULL) {
-        return NGX_ERROR;
-    }
-
-    v->len = ngx_sprintf(p, "%ui", r->connection->requests) - p;
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
@@ -464,6 +452,39 @@ ngx_extra_var_cache_file(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+
+
+static ngx_int_t
+ngx_extra_var_cache_age(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_http_cache_t  *c;
+    time_t age = 0;
+    u_char *p;
+
+    c = r->cache;
+    if (c == NULL || 0 == c->file.name.len) {
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    p = ngx_pnalloc(r->pool, NGX_TIME_T_LEN);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (c->date) {
+        age = ngx_time() - c->date;
+    }
+
+    v->len = ngx_sprintf(p, "%T", age) - p;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
 #endif
 
 
@@ -582,4 +603,27 @@ ngx_extra_var_request_version(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+
+
+#if nginx_version < 1001018
+static ngx_int_t
+ngx_extra_var_connection_requests(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    u_char  *p;
+
+    p = ngx_pnalloc(r->pool, NGX_INT_T_LEN);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    v->len = ngx_sprintf(p, "%ui", r->connection->requests) - p;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
+#endif
 
