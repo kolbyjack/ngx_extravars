@@ -434,12 +434,7 @@ ngx_extra_var_cache_file(ngx_http_request_t *r,
     ngx_http_cache_t  *c;
 
     c = r->cache;
-    if (c == NULL) {
-        v->not_found = 1;
-        return NGX_OK;
-    }
-
-    if (0 == c->file.name.len) {
+    if (c == NULL || 0 == c->file.name.len) {
         v->not_found = 1;
         return NGX_OK;
     }
@@ -458,26 +453,37 @@ static ngx_int_t
 ngx_extra_var_cache_age(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
 {
-    ngx_http_cache_t  *c;
     time_t age = 0;
     u_char *p;
 
-    c = r->cache;
-    if (c == NULL || 0 == c->file.name.len) {
+    if (r->upstream == NULL) {
         v->not_found = 1;
         return NGX_OK;
     }
 
-    p = ngx_pnalloc(r->pool, NGX_TIME_T_LEN);
-    if (p == NULL) {
-        return NGX_ERROR;
+    switch (r->upstream->cache_status) {
+    case NGX_HTTP_CACHE_EXPIRED:
+    case NGX_HTTP_CACHE_UPDATING:
+        p = (u_char *) "0";
+        v->len = 1;
+        break;
+
+    case NGX_HTTP_CACHE_STALE:
+    case NGX_HTTP_CACHE_HIT:
+        p = ngx_pnalloc(r->pool, NGX_TIME_T_LEN);
+        if (p == NULL) {
+            return NGX_ERROR;
+        }
+
+        age = ngx_time() - r->cache->date;
+        v->len = ngx_sprintf(p, "%T", age) - p;
+        break;
+
+    default:
+        v->not_found = 1;
+        return NGX_OK;
     }
 
-    if (c->date) {
-        age = ngx_time() - c->date;
-    }
-
-    v->len = ngx_sprintf(p, "%T", age) - p;
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
