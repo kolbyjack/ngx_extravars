@@ -14,6 +14,7 @@
 #define NGX_EXTRAVARS_TIME_REQUEST  2
 
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
+#define NGX_EXTRAVAR_BYTES_SENT (nginx_version < 1003008)
 
 static ngx_int_t ngx_http_extravars_add_variables(ngx_conf_t *cf);
 
@@ -33,8 +34,10 @@ static ngx_int_t ngx_extra_var_msec(ngx_http_request_t *r,
 static ngx_int_t ngx_extra_var_status(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 #endif
+#if (NGX_EXTRAVAR_BYTES_SENT)
 static ngx_int_t ngx_extra_var_bytes_sent(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#endif
 static ngx_int_t ngx_extra_var_request_length(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 #if (NGX_HTTP_CACHE)
@@ -119,8 +122,10 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
 #endif
 
+#if (NGX_EXTRAVAR_BYTES_SENT)
     { ngx_string("bytes_sent"), NULL, ngx_extra_var_bytes_sent, 0,
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
+#endif
 
     { ngx_string("request_length"), NULL, ngx_extra_var_request_length,
         0, 0, 0 },
@@ -358,6 +363,7 @@ ngx_extra_var_status(ngx_http_request_t *r,
 #endif
 
 
+#if (NGX_EXTRAVAR_BYTES_SENT)
 static ngx_int_t
 ngx_extra_var_bytes_sent(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
@@ -377,6 +383,7 @@ ngx_extra_var_bytes_sent(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+#endif
 
 
 static ngx_int_t
