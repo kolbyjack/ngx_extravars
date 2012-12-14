@@ -14,14 +14,17 @@
 #define NGX_EXTRAVARS_TIME_REQUEST  2
 
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
-#define NGX_EXTRAVAR_BYTES_SENT (nginx_version < 1003008)
+#define NGX_EXTRAVAR_CONNECTIONS (nginx_version < 1003008)
+#define NGX_EXTRAVAR_MSEC (nginx_version < 1003009)
 
 static ngx_int_t ngx_http_extravars_add_variables(ngx_conf_t *cf);
 
 static ngx_int_t ngx_extra_var_location(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#if (NGX_EXTRAVAR_CONNECTIONS)
 static ngx_int_t ngx_extra_var_connection(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#endif
 static ngx_int_t ngx_extra_var_pipe(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_time(ngx_http_request_t *r,
@@ -58,8 +61,10 @@ static ngx_int_t ngx_extra_var_subrequest_count(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_request_version(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#if (NGX_EXTRAVAR_CONNECTIONS)
 static ngx_int_t ngx_extra_var_connection_requests(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#endif
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -98,7 +103,9 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("location"), NULL, ngx_extra_var_location, 0,
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
+#if (NGX_EXTRAVAR_CONNECTIONS)
     { ngx_string("connection"), NULL, ngx_extra_var_connection, 0, 0, 0 },
+#endif
 
     { ngx_string("pipe"), NULL, ngx_extra_var_pipe, 0, 0, 0 },
 
@@ -108,11 +115,13 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("time_iso8601"), NULL, ngx_extra_var_iso8601, 0,
         NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
+#if (NGX_EXTRAVAR_MSEC)
     { ngx_string("msec"), NULL, ngx_extra_var_msec,
         NGX_EXTRAVARS_TIME_NOW, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("request_time"), NULL, ngx_extra_var_msec,
         NGX_EXTRAVARS_TIME_ELAPSED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+#endif
 
     { ngx_string("request_received"), NULL, ngx_extra_var_msec,
         NGX_EXTRAVARS_TIME_REQUEST, 0, 0 },
@@ -155,8 +164,10 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("request_version"), NULL, ngx_extra_var_request_version,
         0, 0, 0 },
 
+#if (NGX_EXTRAVAR_CONNECTIONS)
     { ngx_string("connection_requests"), NULL,
         ngx_extra_var_connection_requests, 0, 0, 0 },
+#endif
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -209,6 +220,7 @@ ngx_extra_var_location(ngx_http_request_t *r,
 }
 
 
+#if (NGX_EXTRAVAR_CONNECTIONS)
 static ngx_int_t
 ngx_extra_var_connection(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
@@ -228,6 +240,7 @@ ngx_extra_var_connection(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+#endif
 
 
 static ngx_int_t
@@ -622,6 +635,7 @@ ngx_extra_var_request_version(ngx_http_request_t *r,
 }
 
 
+#if (NGX_EXTRAVAR_CONNECTIONS)
 static ngx_int_t
 ngx_extra_var_connection_requests(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
@@ -641,4 +655,5 @@ ngx_extra_var_connection_requests(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+#endif
 
