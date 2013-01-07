@@ -13,6 +13,9 @@
 #define NGX_EXTRAVARS_TIME_ELAPSED  1
 #define NGX_EXTRAVARS_TIME_REQUEST  2
 
+#define NGX_EXTRAVARS_WSGI_SCRIPT_NAME  0
+#define NGX_EXTRAVARS_WSGI_PATH_INFO    1
+
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
 #define NGX_EXTRAVAR_CONNECTIONS (nginx_version < 1003008)
 #define NGX_EXTRAVAR_MSEC (nginx_version < 1003009)
@@ -65,6 +68,8 @@ static ngx_int_t ngx_extra_var_request_version(ngx_http_request_t *r,
 static ngx_int_t ngx_extra_var_connection_requests(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 #endif
+static ngx_int_t ngx_extra_var_wsgi(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -169,6 +174,12 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
         ngx_extra_var_connection_requests, 0, 0, 0 },
 #endif
 
+    { ngx_string("wsgi_script_name"), NULL, ngx_extra_var_wsgi,
+        NGX_EXTRAVARS_WSGI_SCRIPT_NAME, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("wsgi_path_info"), NULL, ngx_extra_var_wsgi,
+        NGX_EXTRAVARS_WSGI_PATH_INFO, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
 
@@ -215,6 +226,42 @@ ngx_extra_var_location(ngx_http_request_t *r,
     v->no_cacheable = 0;
     v->not_found = 0;
     v->data = clcf->name.data;
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_extra_var_wsgi(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_http_core_loc_conf_t   *clcf;
+    ngx_uint_t                  script_name_len;
+
+    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+    script_name_len = clcf->name.len;
+    if (script_name_len > 0
+        && '/' == clcf->name.data[script_name_len - 1])
+    {
+        --script_name_len;
+    }
+
+    if (ngx_strncmp(r->uri.data, clcf->name.data, script_name_len) != 0) {
+        script_name_len = 0;
+    }
+
+    if (NGX_EXTRAVARS_WSGI_SCRIPT_NAME == data) {
+        v->data = r->uri.data;
+        v->len = script_name_len;
+    } else {
+        v->data = r->uri.data + script_name_len;
+        v->len = r->uri.len - script_name_len;
+    }
+
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
 
     return NGX_OK;
 }
