@@ -17,11 +17,12 @@
 #define NGX_EXTRAVARS_WSGI_PATH_INFO    1
 
 #define NGX_EXTRAVARS_STUB_STAT_ACCEPTED    0
-#define NGX_EXTRAVARS_STUB_STAT_HANDLED     1
-#define NGX_EXTRAVARS_STUB_STAT_ACTIVE      2
-#define NGX_EXTRAVARS_STUB_STAT_REQUESTS    3
-#define NGX_EXTRAVARS_STUB_STAT_READING     4
-#define NGX_EXTRAVARS_STUB_STAT_WRITING     5
+#define NGX_EXTRAVARS_STUB_STAT_ACTIVE      1
+#define NGX_EXTRAVARS_STUB_STAT_HANDLED     2
+#define NGX_EXTRAVARS_STUB_STAT_READING     3
+#define NGX_EXTRAVARS_STUB_STAT_REQUESTS    4
+#define NGX_EXTRAVARS_STUB_STAT_WAITING     5
+#define NGX_EXTRAVARS_STUB_STAT_WRITING     6
 
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
 #define NGX_EXTRAVAR_CONNECTIONS (nginx_version < 1003008)
@@ -195,17 +196,20 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("stub_stat_accepted"), NULL, ngx_extra_var_stub_stat,
         NGX_EXTRAVARS_STUB_STAT_ACCEPTED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
+    { ngx_string("stub_stat_active"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_ACTIVE, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
     { ngx_string("stub_stat_handled"), NULL, ngx_extra_var_stub_stat,
         NGX_EXTRAVARS_STUB_STAT_HANDLED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
-    { ngx_string("stub_stat_active"), NULL, ngx_extra_var_stub_stat,
-        NGX_EXTRAVARS_STUB_STAT_ACTIVE, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+    { ngx_string("stub_stat_reading"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_READING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("stub_stat_requests"), NULL, ngx_extra_var_stub_stat,
         NGX_EXTRAVARS_STUB_STAT_REQUESTS, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
-    { ngx_string("stub_stat_reading"), NULL, ngx_extra_var_stub_stat,
-        NGX_EXTRAVARS_STUB_STAT_READING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+    { ngx_string("stub_stat_waiting"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_WAITING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("stub_stat_writing"), NULL, ngx_extra_var_stub_stat,
         NGX_EXTRAVARS_STUB_STAT_WRITING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
@@ -749,20 +753,24 @@ ngx_extra_var_stub_stat(ngx_http_request_t *r,
         stat = *ngx_stat_accepted;
         break;
 
+    case NGX_EXTRAVARS_STUB_STAT_ACTIVE:
+        stat = *ngx_stat_active;
+        break;
+
     case NGX_EXTRAVARS_STUB_STAT_HANDLED:
         stat = *ngx_stat_handled;
         break;
 
-    case NGX_EXTRAVARS_STUB_STAT_ACTIVE:
-        stat = *ngx_stat_active;
+    case NGX_EXTRAVARS_STUB_STAT_READING:
+        stat = *ngx_stat_reading;
         break;
 
     case NGX_EXTRAVARS_STUB_STAT_REQUESTS:
         stat = *ngx_stat_requests;
         break;
 
-    case NGX_EXTRAVARS_STUB_STAT_READING:
-        stat = *ngx_stat_reading;
+    case NGX_EXTRAVARS_STUB_STAT_WAITING:
+        stat = *ngx_stat_active - (*ngx_stat_reading + *ngx_stat_writing);
         break;
 
     case NGX_EXTRAVARS_STUB_STAT_WRITING:
