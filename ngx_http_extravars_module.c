@@ -25,6 +25,7 @@
 #define NGX_EXTRAVARS_STUB_STAT_WRITING     6
 
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
+#define NGX_EXTRAVAR_BYTES_SENT (nginx_version < 1003008)
 #define NGX_EXTRAVAR_CONNECTIONS (nginx_version < 1003008)
 #define NGX_EXTRAVAR_MSEC (nginx_version < 1003009)
 
