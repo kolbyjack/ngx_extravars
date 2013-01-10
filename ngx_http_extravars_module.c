@@ -16,6 +16,13 @@
 #define NGX_EXTRAVARS_WSGI_SCRIPT_NAME  0
 #define NGX_EXTRAVARS_WSGI_PATH_INFO    1
 
+#define NGX_EXTRAVARS_STUB_STAT_ACCEPTED    0
+#define NGX_EXTRAVARS_STUB_STAT_HANDLED     1
+#define NGX_EXTRAVARS_STUB_STAT_ACTIVE      2
+#define NGX_EXTRAVARS_STUB_STAT_REQUESTS    3
+#define NGX_EXTRAVARS_STUB_STAT_READING     4
+#define NGX_EXTRAVARS_STUB_STAT_WRITING     5
+
 #define NGX_EXTRAVAR_STATUS ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
 #define NGX_EXTRAVAR_CONNECTIONS (nginx_version < 1003008)
 #define NGX_EXTRAVAR_MSEC (nginx_version < 1003009)
@@ -70,6 +77,10 @@ static ngx_int_t ngx_extra_var_connection_requests(ngx_http_request_t *r,
 #endif
 static ngx_int_t ngx_extra_var_wsgi(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+#if (NGX_STAT_STUB)
+static ngx_int_t ngx_extra_var_stub_stat(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+#endif
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -179,6 +190,26 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("wsgi_path_info"), NULL, ngx_extra_var_wsgi,
         NGX_EXTRAVARS_WSGI_PATH_INFO, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+#if (NGX_STAT_STUB)
+    { ngx_string("stub_stat_accepted"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_ACCEPTED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("stub_stat_handled"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_HANDLED, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("stub_stat_active"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_ACTIVE, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("stub_stat_requests"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_REQUESTS, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("stub_stat_reading"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_READING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("stub_stat_writing"), NULL, ngx_extra_var_stub_stat,
+        NGX_EXTRAVARS_STUB_STAT_WRITING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+#endif
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -695,6 +726,60 @@ ngx_extra_var_connection_requests(ngx_http_request_t *r,
     }
 
     v->len = ngx_sprintf(p, "%ui", r->connection->requests) - p;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
+#endif
+
+
+#if (NGX_STAT_STUB)
+static ngx_int_t
+ngx_extra_var_stub_stat(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_atomic_t    stat;
+    u_char         *p;
+
+    switch (data) {
+    case NGX_EXTRAVARS_STUB_STAT_ACCEPTED:
+        stat = *ngx_stat_accepted;
+        break;
+
+    case NGX_EXTRAVARS_STUB_STAT_HANDLED:
+        stat = *ngx_stat_handled;
+        break;
+
+    case NGX_EXTRAVARS_STUB_STAT_ACTIVE:
+        stat = *ngx_stat_active;
+        break;
+
+    case NGX_EXTRAVARS_STUB_STAT_REQUESTS:
+        stat = *ngx_stat_requests;
+        break;
+
+    case NGX_EXTRAVARS_STUB_STAT_READING:
+        stat = *ngx_stat_reading;
+        break;
+
+    case NGX_EXTRAVARS_STUB_STAT_WRITING:
+        stat = *ngx_stat_writing;
+        break;
+
+    default:
+        v->not_found = 1;
+        return NGX_OK;
+    }
+
+    p = ngx_pnalloc(r->pool, NGX_ATOMIC_T_LEN);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    v->len = ngx_sprintf(p, "%uA", stat) - p;
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
