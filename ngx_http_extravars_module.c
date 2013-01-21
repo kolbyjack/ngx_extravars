@@ -83,6 +83,8 @@ static ngx_int_t ngx_extra_var_wsgi(ngx_http_request_t *r,
 static ngx_int_t ngx_extra_var_stub_stat(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 #endif
+static ngx_int_t ngx_extra_var_process_slot(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -215,6 +217,8 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("stub_stat_writing"), NULL, ngx_extra_var_stub_stat,
         NGX_EXTRAVARS_STUB_STAT_WRITING, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 #endif
+
+    { ngx_string("process_slot"), NULL, ngx_extra_var_process_slot, 0, 0, 0 },
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
 };
@@ -797,4 +801,25 @@ ngx_extra_var_stub_stat(ngx_http_request_t *r,
     return NGX_OK;
 }
 #endif
+
+
+static ngx_int_t
+ngx_extra_var_process_slot(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    u_char  *p;
+
+    p = ngx_pnalloc(r->pool, NGX_INT_T_LEN);
+    if (p == NULL) {
+        return NGX_ERROR;
+    }
+
+    v->len = ngx_sprintf(p, "%ui", ngx_process_slot) - p;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = p;
+
+    return NGX_OK;
+}
 
