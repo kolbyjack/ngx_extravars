@@ -15,7 +15,7 @@ Variable                    Value
 **$process_slot**           Slot in nginx's child process list.
 **$redirect_count**         The number of times the current request has been internally redirected.
 **$request_length**         Same as `access_log`_'s $request_length.
-**$request_received**       Seconds since the request was received, to msec precision.
+**$request_received**       Timestamp when the request was received, to msec precision.
 **$request_time**           Same as `access_log`_'s $request_time.
 **$request_version**        HTTP version used by the request.
 **$status**                 Same as `access_log`_'s $status.
