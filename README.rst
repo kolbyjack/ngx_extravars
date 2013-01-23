@@ -1,6 +1,7 @@
 ========================    ==========================================================================================
 Variable                    Value
 ------------------------    ------------------------------------------------------------------------------------------
+**$aliased_uri**            The part of $uri left over after removing what matches $location.
 **$bytes_sent**             Same as `access_log <http://wiki.nginx.org/HttpLogModule#access_log>`_'s $bytes_sent.
 **$cache_age**              Age of the cache file used to satisfy requests in seconds.
 **$cache_file**             The cache file path for a cached response.
