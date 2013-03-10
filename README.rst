@@ -14,6 +14,7 @@ Variable                    Value
 **$original_uri**           The original parsed uri.
 **$pipe**                   Same as `access_log`_'s $pipe.
 **$process_slot**           Slot in nginx's child process list.
+**$random**                 Random integer.
 **$redirect_count**         The number of times the current request has been internally redirected.
 **$request_length**         Same as `access_log`_'s $request_length.
 **$request_received**       Timestamp when the request was received, to msec precision.

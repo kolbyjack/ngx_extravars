@@ -28,6 +28,7 @@
 #define NGX_EXTRAVAR_SUBREQUEST_COUNT       1
 #define NGX_EXTRAVAR_PROCESS_SLOT           2
 #define NGX_EXTRAVAR_CONNECTION_REQUESTS    3
+#define NGX_EXTRAVAR_RANDOM                 4
 
 #define NGX_EXTRAVARS_PRE_1_3_2 ((nginx_version < 1002002) || ((nginx_version >= 1003000) && (nginx_version < 1003002)))
 #define NGX_EXTRAVARS_PRE_1_3_8 (nginx_version < 1003008)
@@ -42,7 +43,7 @@ static ngx_int_t ngx_extra_var_location(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_time_msec(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
-static ngx_int_t ngx_extra_var_int(ngx_http_request_t *r,
+static ngx_int_t ngx_extra_var_uint(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_ext(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
@@ -135,10 +136,13 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("original_uri"), NULL, ngx_extra_var_original_uri, 0, 0, 0 },
 
-    { ngx_string("process_slot"), NULL, ngx_extra_var_int,
+    { ngx_string("process_slot"), NULL, ngx_extra_var_uint,
         NGX_EXTRAVAR_PROCESS_SLOT, 0, 0 },
 
-    { ngx_string("redirect_count"), NULL, ngx_extra_var_int,
+    { ngx_string("random"), NULL, ngx_extra_var_uint,
+        NGX_EXTRAVAR_RANDOM, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+
+    { ngx_string("redirect_count"), NULL, ngx_extra_var_uint,
         NGX_EXTRAVAR_REDIRECT_COUNT, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("request_received"), NULL, ngx_extra_var_time_msec,
@@ -147,7 +151,7 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
     { ngx_string("request_version"), NULL, ngx_extra_var_request_version,
         0, 0, 0 },
 
-    { ngx_string("subrequest_count"), NULL, ngx_extra_var_int,
+    { ngx_string("subrequest_count"), NULL, ngx_extra_var_uint,
         NGX_EXTRAVAR_SUBREQUEST_COUNT, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("wsgi_script_name"), NULL, ngx_extra_var_wsgi,
@@ -201,7 +205,7 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("connection"), NULL, ngx_extra_var_connection, 0, 0, 0 },
 
-    { ngx_string("connection_requests"), NULL, ngx_extra_var_int,
+    { ngx_string("connection_requests"), NULL, ngx_extra_var_uint,
         NGX_EXTRAVAR_CONNECTION_REQUESTS, 0, 0 },
 #endif
 
@@ -453,10 +457,10 @@ ngx_extra_var_time_msec(ngx_http_request_t *r,
 
 
 static ngx_int_t
-ngx_extra_var_int(ngx_http_request_t *r,
+ngx_extra_var_uint(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data)
 {
-    ngx_int_t   value;
+    ngx_uint_t  value;
     u_char     *p;
 
     p = ngx_pnalloc(r->pool, NGX_INT_T_LEN);
@@ -479,6 +483,10 @@ ngx_extra_var_int(ngx_http_request_t *r,
 
     case NGX_EXTRAVAR_CONNECTION_REQUESTS:
         value = r->connection->requests;
+        break;
+
+    case NGX_EXTRAVAR_RANDOM:
+        value = ngx_random();
         break;
 
     default:
