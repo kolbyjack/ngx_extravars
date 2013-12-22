@@ -237,26 +237,16 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 static ngx_int_t
 ngx_http_extravars_add_variables(ngx_conf_t *cf)
 {
-    ngx_int_t                   rc;
-    ngx_http_variable_t        *v;
-    ngx_http_core_main_conf_t  *cmcf;
-
-    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+    ngx_http_variable_t  *var, *v;
 
     for (v = ngx_http_extra_variables; v->name.len; v++) {
-        rc = ngx_hash_add_key(cmcf->variables_keys, &v->name, v,
-                              NGX_HASH_READONLY_KEY);
-
-        if (rc == NGX_OK) {
-            continue;
+        var = ngx_http_add_variable(cf, &v->name, v->flags);
+        if (var == NULL) {
+            return NGX_ERROR;
         }
 
-        if (rc == NGX_BUSY) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "conflicting variable name \"%V\"", &v->name);
-        }
-
-        return NGX_ERROR;
+        var->get_handler = v->get_handler;
+        var->data = v->data;
     }
 
     return NGX_OK;
