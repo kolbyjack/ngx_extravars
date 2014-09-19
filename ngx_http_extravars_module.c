@@ -53,6 +53,8 @@ static ngx_int_t ngx_extra_var_request_version(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_extra_var_wsgi(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_extra_var_sorted_args(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
 
 #if (NGX_HTTP_CACHE)
 static ngx_int_t ngx_extra_var_cache_key(ngx_http_request_t *r,
@@ -90,6 +92,9 @@ static ngx_int_t ngx_extra_var_iso8601(ngx_http_request_t *r,
 static ngx_int_t ngx_extra_var_request_length(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 #endif
+
+static int ngx_libc_cdecl ngx_extra_var_cmp_args(const void *one,
+    const void *two);
 
 
 static ngx_http_module_t  ngx_http_extravars_module_ctx = {
@@ -150,6 +155,9 @@ static ngx_http_variable_t  ngx_http_extra_variables[] = {
 
     { ngx_string("request_version"), NULL, ngx_extra_var_request_version,
         0, 0, 0 },
+
+    { ngx_string("sorted_args"), NULL, ngx_extra_var_sorted_args, 0,
+        NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
     { ngx_string("subrequest_count"), NULL, ngx_extra_var_uint,
         NGX_EXTRAVAR_SUBREQUEST_COUNT, NGX_HTTP_VAR_NOCACHEABLE, 0 },
@@ -390,6 +398,89 @@ ngx_extra_var_wsgi(ngx_http_request_t *r,
     v->valid = 1;
     v->no_cacheable = 0;
     v->not_found = 0;
+
+    return NGX_OK;
+}
+
+
+static int ngx_libc_cdecl
+ngx_extra_var_cmp_args(const void *one, const void *two)
+{
+    const ngx_str_t *first, *second;
+
+    first = (const ngx_str_t *) one;
+    second = (const ngx_str_t *) two;
+
+    ngx_int_t cmpr = ngx_strncmp(first->data, second->data,
+        ngx_min(first->len, second->len));
+
+    if (cmpr > 0 || (cmpr == 0 && first->len > second->len)) {
+        return 1;
+    } else {
+        return cmpr;
+    }
+}
+
+
+static ngx_int_t
+ngx_extra_var_sorted_args(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data)
+{
+    ngx_array_t  args;
+    ngx_str_t   *arg;
+    size_t       i;
+    u_char      *sorted_args, *p, *last;
+
+    if (r->args.len == 0) {
+        return NGX_DECLINED;
+    }
+
+    sorted_args = ngx_pnalloc(r->pool, r->args.len + 1);
+    if (sorted_args == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (ngx_array_init(&args, r->pool, 8, sizeof(ngx_str_t)) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    arg = ngx_array_push(&args);
+    arg->data = p = r->args.data;
+    last = p + r->args.len;
+
+    for ( /* void */ ; p < last; p++) {
+
+        if (*p == '&') {
+            arg->len = p - arg->data;
+
+            arg = ngx_array_push(&args);
+            if (arg == NULL) {
+                return NGX_ERROR;
+            }
+
+            arg->data = p + 1;
+        }
+    }
+
+    arg->len = p - arg->data;
+
+    ngx_qsort(args.elts, args.nelts, sizeof(ngx_str_t),
+        ngx_extra_var_cmp_args);
+
+    arg = (ngx_str_t *) args.elts;
+    p = sorted_args;
+
+    for (i = 0; i < args.nelts; ++i) {
+        ngx_memcpy(p, arg[i].data, arg[i].len);
+        p[arg[i].len] = '&';
+        p += arg[i].len + 1;
+    }
+
+    v->len = r->args.len;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = sorted_args;
 
     return NGX_OK;
 }

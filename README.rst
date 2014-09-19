@@ -20,6 +20,7 @@ Variable                    Value
 **$request_received**       Timestamp when the request was received, to msec precision.
 **$request_time**           Same as `access_log`_'s $request_time.
 **$request_version**        HTTP version used by the request.
+**$sorted_args**            All of the query string args, sorted alphabetically.
 **$status**                 Same as `access_log`_'s $status.
 **$stub_stat_accepted**     Same as the "accepts" field of the stub_status module output.
 **$stub_stat_active**       Same as the "active connections" field of the stub_status module output.
